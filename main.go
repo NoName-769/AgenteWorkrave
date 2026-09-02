@@ -326,9 +326,21 @@ func monitorWorkrave() {
 
 	for {
 
+		if is3CXRunning() {
+
+			log.Println(
+				"3CX está activo. Workrave permanece cerrado.",
+			)
+
+			time.Sleep(1 * time.Minute)
+			continue
+		}
+
 		if !WorkraveStatus() {
 
-			log.Println("Workrave está cerrado. Intentando abrir...")
+			log.Println(
+				"Workrave está cerrado. Intentando abrir...",
+			)
 
 			err := OpenWorkrave()
 
@@ -341,9 +353,10 @@ func monitorWorkrave() {
 
 			} else {
 
-				log.Println("Orden de apertura enviada")
+				log.Println(
+					"Orden de apertura enviada",
+				)
 
-				// Dar tiempo a Workrave para iniciar
 				time.Sleep(5 * time.Second)
 
 				if WorkraveStatus() {
@@ -380,6 +393,97 @@ func isWorkraveRunning() bool {
 	}
 
 	return false
+}
+
+func monitor3CX() {
+
+	var threeCXAnterior bool
+	var workraveEstabaAbierto bool
+
+	for {
+
+		threeCXActivo := is3CXRunning()
+
+		if threeCXActivo && !threeCXAnterior {
+
+			log.Println("3CX detectado: ACTIVO")
+
+			workraveEstabaAbierto = isWorkraveRunning()
+
+			if workraveEstabaAbierto {
+
+				log.Println("3CX activo. Cerrando Workrave...")
+
+				err := CloseWorkrave()
+
+				if err != nil {
+					log.Println(
+						"Error cerrando Workrave por 3CX:",
+						err,
+					)
+				} else {
+					log.Println(
+						"Workrave cerrado debido a 3CX activo",
+					)
+				}
+
+			} else {
+
+				log.Println(
+					"3CX activo, pero Workrave ya estaba cerrado",
+				)
+			}
+		}
+
+		if !threeCXActivo && threeCXAnterior {
+
+			log.Println("3CX detectado: CERRADO")
+
+			if workraveEstabaAbierto {
+
+				if !isWorkraveRunning() {
+
+					log.Println(
+						"3CX cerrado. Restaurando Workrave...",
+					)
+
+					err := OpenWorkrave()
+
+					if err != nil {
+
+						log.Println(
+							"Error restaurando Workrave:",
+							err,
+						)
+
+					} else {
+
+						log.Println(
+							"Workrave restaurado correctamente",
+						)
+					}
+
+				} else {
+
+					log.Println(
+						"Workrave ya está abierto",
+					)
+				}
+
+			} else {
+
+				log.Println(
+					"Workrave estaba cerrado antes de 3CX. No se abrirá.",
+				)
+			}
+
+			workraveEstabaAbierto = false
+		}
+
+		threeCXAnterior = threeCXActivo
+
+		time.Sleep(1 * time.Minute)
+	}
 }
 
 func getDockerContainersDetails() []map[string]interface{} {
@@ -924,6 +1028,8 @@ func main() {
 	go startDashboard()
 
 	go monitorMicroBreak()
+
+	go monitor3CX()
 
 	go monitorWorkrave()
 
