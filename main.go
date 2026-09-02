@@ -95,7 +95,7 @@ func enviarHeartbeat() {
 
 		if err != nil {
 			log.Println("Error preparando heartbeat:", err)
-			time.Sleep(10 * time.Minute)
+			time.Sleep(10 * time.Second)
 			continue
 		}
 
@@ -136,7 +136,7 @@ func enviarHeartbeat() {
 			}
 		}
 
-		time.Sleep(10 * time.Minute)
+		time.Sleep(10 * time.Second)
 	}
 }
 
@@ -302,6 +302,8 @@ func getTopProcessesDetails() []map[string]interface{} {
 	return res
 }
 
+var permitirAperturaWorkrave = true
+
 func is3CXRunning() bool {
 
 	procs, err := process.Processes()
@@ -332,6 +334,11 @@ func monitorWorkrave() {
 				"3CX está activo. Workrave permanece cerrado.",
 			)
 
+			time.Sleep(1 * time.Minute)
+			continue
+		}
+
+		if !permitirAperturaWorkrave {
 			time.Sleep(1 * time.Minute)
 			continue
 		}
@@ -407,6 +414,7 @@ func monitor3CX() {
 		if threeCXActivo && !threeCXAnterior {
 
 			log.Println("3CX detectado: ACTIVO")
+			permitirAperturaWorkrave = false
 
 			workraveEstabaAbierto = isWorkraveRunning()
 
@@ -443,6 +451,8 @@ func monitor3CX() {
 
 				if !isWorkraveRunning() {
 
+					permitirAperturaWorkrave = true
+
 					log.Println(
 						"3CX cerrado. Restaurando Workrave...",
 					)
@@ -472,8 +482,10 @@ func monitor3CX() {
 
 			} else {
 
+				permitirAperturaWorkrave = true
+
 				log.Println(
-					"Workrave estaba cerrado antes de 3CX. No se abrirá.",
+					"3CX cerrado. Restaurando Workrave...",
 				)
 			}
 
